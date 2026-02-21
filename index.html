@@ -2,11 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IAC Relief System | مؤسسة الإغاثة الدولية</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAC Relief System | مؤسسة الإغاثة الدولية</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --iac-primary: #1b8f4c;
@@ -450,7 +449,7 @@ input { width: 100%; padding: 12px; border: 2px solid #d1dbd6; border-radius: 12
 
     <script>
         // رابط API الخاص بجوجل الذي نسخته في المرحلة الأولى
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxc-bPRnSDnh4aTgX6y-8oErJMwvRf29oq9-cSiBrwKX5sQkSIqMnhNfqDzgT3pXKgSQg/exec";
+        const WEB_APP_URL ="https://script.google.com/macros/s/AKfycbxdfrzm3znYTwZotEJj4CXKA0zvT0neCbtpsmAklXDBN4CX_GqLM5I0vtZ0JWWwYdL5yg/exec";
 
 const SYSTEM_PASS = "iac2026";
 let html5QrCode, loginQrCode, queryQrCode;
@@ -467,6 +466,19 @@ const translationMap = {
 function getArName(name) { return translationMap[name.toLowerCase()] || name; }
 function getEnName(name) { return name.charAt(0).toUpperCase() + name.slice(1); }
 
+async function callApi(action, params = {}) {
+    try {
+        const response = await fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: action, params: params })
+        });
+        return await response.json();
+    } catch (err) {
+        console.error("Connection Error:", err);
+        alert("فشل الاتصال بالخادم. تأكد من جودة الإنترنت.");
+        return { status: "error", message: "Connection failed" };
+    }
+}
 // --- وظائف الملاحة ---
 function toggleSidebar() {
   document.getElementById("mySidebar").classList.toggle("active");
@@ -483,14 +495,27 @@ function switchSection(sectionId) {
 }
 
 // --- وظائف تسجيل الدخول ---
-function login() {
-  if(document.getElementById('passInput').value === SYSTEM_PASS) {
-    showMainApp();
+async function login() {
+  const qrId = document.getElementById('volunteerQrInput').value;
+  const pass = document.getElementById('passInput').value;
+  
+  if (!qrId) return alert("يرجى قراءة كود المتطوع");
+  if (pass !== SYSTEM_PASS) return alert("كلمة المرور خاطئة");
+
+  showLoading();
+  const res = await callApi("verifyVolunteer", { qrId: qrId });
+  hideLoading();
+
+  if (res.status === "success") {
+    // نفس الكود الخاص بك للانتقال للشاشة التالية
+    document.getElementById('loginScreen').classList.remove('active');
+    document.getElementById('mainMenu').classList.add('active');
+    document.getElementById('volName').textContent = res.name;
+    // ... إلخ
   } else {
-    document.getElementById('login-err').innerText = "كلمة المرور خاطئة | Incorrect Password";
+    alert(res.message || "فشل التحقق");
   }
 }
-
 // ... (دوال تسجيل الدخول المتبقية كما هي في الكود السابق)
 function toggleLoginScanner() {
   const readerDiv = document.getElementById('login-qr-reader');
@@ -541,15 +566,32 @@ function showMainApp() {
 }
 
 // --- وظائف التوزيع ---
-function search() {
+async function search() {
   const id = document.getElementById('idInput').value;
   const day = document.getElementById('dayInput').value;
-  if(!id || !day) return alert("يرجى إدخال ID واليوم | Enter ID & Day");
+
+  // التحقق من المدخلات قبل الإرسال
+  if (!id || !day) {
+    return alert("يرجى إدخال ID واليوم | Enter ID & Day");
+  }
+
+  showLoading();
   document.getElementById('beneficiary-result').innerHTML = "جاري التحميل... | Loading...";
   document.getElementById('items-result').innerHTML = "جاري جلب القائمة... | Fetching list...";
-  google.script.run.withSuccessHandler(renderResult).getEntitlement(id, day);
-}
 
+  try {
+    // نرسل الـ id والـ day معاً كـ params
+    const res = await callApi("search", { id: id, day: day });
+    hideLoading();
+    
+    // إرسال النتيجة للدالة التي تعالج البيانات
+    handleSearchResponse(res); 
+  } catch (error) {
+    hideLoading();
+    console.error("Search error:", error);
+    alert("حدث خطأ أثناء الاتصال بالقاعدة");
+  }
+}
 function renderResult(res) {
   const bContainer = document.getElementById('beneficiary-result');
   const iContainer = document.getElementById('items-result');
