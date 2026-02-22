@@ -535,10 +535,10 @@ async function search() {
 function renderResult(res) {
   const bContainer = document.getElementById('beneficiary-result');
   const iContainer = document.getElementById('items-result');
-  
-  // إزالة أي زر تسليم الكل سابق
-  const existingBtn = document.getElementById('deliver-all-btn-container');
-  if (existingBtn) existingBtn.remove();
+  const placeholder = document.getElementById('deliver-all-placeholder');
+
+  // تنظيف الـ placeholder
+  if (placeholder) placeholder.innerHTML = '';
 
   if(!res || res.status === "not_found") {
     bContainer.innerHTML = "<div style='color:red; text-align:center'>❌ غير موجود | ID Not Found</div>";
@@ -565,24 +565,16 @@ function renderResult(res) {
     return;
   }
 
-  // إنشاء زر تسليم الكل إذا كان هناك مواد
-  if (Object.keys(res.items).length > 0) {
+  // إنشاء زر تسليم الكل إذا كان هناك مواد ووضعه في الـ placeholder
+  if (placeholder && Object.keys(res.items).length > 0) {
     const btnContainer = document.createElement('div');
     btnContainer.id = 'deliver-all-btn-container';
-    btnContainer.style.padding = '10px 0';
-    btnContainer.style.width = '100%';
-    btnContainer.style.maxWidth = '600px';
-    btnContainer.style.margin = '0 auto';
-    
     const btn = document.createElement('button');
-    btn.className = 'btn-action btn-search'; // نفس تصميم الأزرار الخضراء
+    btn.className = 'btn-action btn-search';
     btn.innerHTML = 'تسليم الكل | Deliver All';
     btn.onclick = deliverAll;
-    
     btnContainer.appendChild(btn);
-    
-    // إدراج الزر بعد beneficiary-result وقبل items-result
-    bContainer.parentNode.insertBefore(btnContainer, iContainer);
+    placeholder.appendChild(btnContainer);
   }
 
   let itemsHtml="";
@@ -604,7 +596,7 @@ function renderResult(res) {
   }
   iContainer.innerHTML = itemsHtml;
 }
-
+    
 async function deliverItem(name, qty, colIdx) {
   if(!confirm(`تأكيد تسليم: ${getArName(name)}؟ \n Confirm delivery of ${name}?`)) return;
   const id = document.getElementById('idInput').value;
@@ -614,21 +606,20 @@ async function deliverItem(name, qty, colIdx) {
 }
 
 
-// === دالة تسليم الكل الجديدة (تستخدم API الجديد) ===
 async function deliverAll() {
   const id = document.getElementById('idInput').value;
   const day = document.getElementById('dayInput').value;
   if (!id || !day) return alert("يرجى إدخال ID واليوم | Enter ID & Day");
-  
+
   if (!confirm("هل أنت متأكد من تسليم جميع المواد لهذا المستفيد؟\nConfirm delivery of all items?")) return;
-  
+
   const btn = event.target;
   const originalText = btn.innerHTML;
   btn.innerHTML = "جاري التسليم... | Delivering...";
   btn.disabled = true;
-  
+
   const res = await callApi("deliverAll", { id, day });
-  
+
   if (res.status === "success") {
     alert(`تم تسليم ${res.updated} مادة بنجاح | ${res.updated} items delivered`);
     search(); // تحديث القائمة
@@ -921,4 +912,5 @@ function toggleQueryScanner() {
 </script>
 </body>
 </html>
+
 
